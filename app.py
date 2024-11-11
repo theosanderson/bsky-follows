@@ -410,6 +410,8 @@ TEMPLATES = """
                 handleInput.value = handle.slice(1);
             }
 
+            handleInput.value = handleInput.value.toLowerCase();
+
             if (eventSource) {
                 eventSource.close();
             }
