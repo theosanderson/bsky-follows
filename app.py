@@ -483,16 +483,19 @@ TEMPLATES = """
                                     href="${getBskyUrl(item.handle)}" 
                                     target="_blank" 
                                     rel="noopener"
-                                    class="font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                                    class="font-medium text-blue-600 hover:text-blue-800 hover:underline
+                                     max-w-10 sm:max-w-none "
                                 >
-                                    ${item.handle}
+                                
+                                    ${ (screen.width < 640 && item.handle.includes('bsky.social'))
+                                    ? item.handle.split('.')[0] : item.handle}
                                 </a>
                             </div>
                             <span class="text-gray-600 text-sm">
                                 ${item.count}  ${
                                 window.screen.width < 640
                                 ?
-                                "of followers":"of your followers follow"}
+                                "of those you follow":"of those you follow follow"}
                             </span>
                         </div>
                     `).join('')}
