@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bluesky-analyzer
+  namespace: bluesky
+spec:
+  selector:
+    matchLabels:
+      app: bluesky-analyzer
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: bluesky-analyzer
+    spec:
+      containers:
+      - name: bluesky-analyzer
+        image: theosanderson/bluesky-analyzer:latest  # Replace with your image
+        ports:
+        - containerPort: 8000
+        env:
+        - name: REDIS_HOST
+          value: "redis"
+        - name: REDIS_PORT
+          value: "6379"
+        - name: REDIS_DB
+          value: "0"
+        resources:
+          requests:
+            cpu: 200m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8000
+          initialDelaySeconds: 15
+          periodSeconds: 20

@@ -1,0 +1,27 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bluesky-ingress
+  namespace: bluesky
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    # Add these if you're using cert-manager for SSL
+    # cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  ingressClassName: nginx  # Make sure this matches your ingress controller
+  rules:
+  - host: bsky-follow-suggestions.theo.io  # Replace with your domain
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: bluesky-analyzer
+            port:
+              number: 80
+  tls:
+  - hosts:
+    - bsky-follow-suggestions.theo.io
+    secretName: bluesky-tls
