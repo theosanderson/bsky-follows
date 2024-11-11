@@ -16,6 +16,7 @@ spec:
       containers:
       - name: bluesky-analyzer
         image: theosanderson/bluesky-analyzer:latest  # Replace with your image
+        imagePullPolicy: Always
         ports:
         - containerPort: 8000
         env:
