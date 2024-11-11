@@ -434,7 +434,7 @@ TEMPLATES = """
 
                 ${data.processed_count!= data.total_count ? '<div class="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-500 mr-3 inline-block"></div>' : ''}
                 
-                Processed ${data.processed_count}/${data.total_count} follows • `;
+                Processed ${data.processed_count}/${data.total_count} follows`;
                 document.getElementById('progress').innerHTML = progress;
                 /*document.getElementById('updateTime').textContent = 
                     `Updated ${formatTimestamp(data.timestamp)}`;*/
