@@ -199,7 +199,11 @@ class BlueskyAPI:
             params["cursor"] = cursor
             
         response = self.session.get(url, params=params)
-        response.raise_for_status()
+        # if we get a bad response return an empty list
+        if response.status_code != 200:
+            logger.error(f"Error fetching follows for {actor}: {response.text}")
+            print(f"Error fetching follows for {actor}: {response.text}")
+            return {"follows": []}
         return response.json()
 
     def get_all_follows(self, actor: str) -> Set[str]:
