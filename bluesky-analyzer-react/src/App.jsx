@@ -152,7 +152,8 @@ const ResultItem = ({ item, index, onInView }) => {
 };
 
 const BlueskyAnalyzer = () => {
-  const [handle, setHandle] = useState('');
+  const [inputValue, setInputValue] = useState('');  // New state for input value
+  const [handleToAnalyze, setHandleToAnalyze] = useState(''); // State for the handle to actually analyze
   const [results, setResults] = useState([]);
   const [progress, setProgress] = useState({ processed: 0, total: 0 });
   const [error, setError] = useState(null);
@@ -174,7 +175,7 @@ const BlueskyAnalyzer = () => {
     let eventSource = null;
 
     const startAnalysis = () => {
-      if (!handle.trim()) return;
+      if (!handleToAnalyze.trim()) return;
       
       if (eventSource) {
         eventSource.close();
@@ -184,7 +185,7 @@ const BlueskyAnalyzer = () => {
       setResults([]);
       setError(null);
 
-      eventSource = new EventSource(`//bsky-follow-suggestions.theo.io/analyze/${handle}`);
+      eventSource = new EventSource(`//bsky-follow-suggestions.theo.io/analyze/${handleToAnalyze}`);
 
       eventSource.addEventListener('update', (e) => {
         try {
@@ -220,11 +221,11 @@ const BlueskyAnalyzer = () => {
         eventSource.close();
       }
     };
-  }, [handle, isAnalyzing]);
+  }, [handleToAnalyze, isAnalyzing]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    let processedHandle = handle.trim();
+    let processedHandle = inputValue.trim();
     
     if (!processedHandle.includes('.')) {
       processedHandle = `${processedHandle}.bsky.social`;
@@ -234,7 +235,7 @@ const BlueskyAnalyzer = () => {
       processedHandle = processedHandle.slice(1);
     }
 
-    setHandle(processedHandle.toLowerCase());
+    setHandleToAnalyze(processedHandle.toLowerCase());  // Set the handle to analyze
     setIsAnalyzing(true);
   };
 
@@ -264,8 +265,8 @@ const BlueskyAnalyzer = () => {
           <form onSubmit={handleSubmit} className="flex flex-col md:flex-row gap-4">
             <input 
               type="text" 
-              value={handle}
-              onChange={(e) => setHandle(e.target.value)}
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
               placeholder="Enter Bluesky handle (e.g., user.bsky.social)" 
               className="flex-1 p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
