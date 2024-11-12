@@ -126,7 +126,7 @@ const ResultItem = ({ item, index, onInView, handleToAnalyze }) => {
       ref={itemRef}
       className="flex items-center gap-3 p-3 border-b last:border-b-0 hover:bg-gray-50 transition-colors"
     >
-      <span className="text-sky-500 text-sm font-mono w-6 flex-shrink-0">
+      <span className="text-sky-800 text-sm font-mono w-6 flex-shrink-0">
         {index + 1}
       </span>
       <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-100 flex-shrink-0">
