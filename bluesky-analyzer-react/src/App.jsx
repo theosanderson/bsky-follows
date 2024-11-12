@@ -491,19 +491,7 @@ const BlueskyAnalyzer = () => {
           )}
         </div>
         
-        <div className="mt-4 text-center text-sm text-sky-600">
-          <p>
-            Want to learn more about how this works?{' '}
-            <a 
-              href="https://github.com/yourusername/bluesky-analyzer" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="text-sky-500 hover:text-sky-700 hover:underline"
-            >
-              Check out the source code
-            </a>
-          </p>
-        </div>
+      
       </div>
     </div>
   );
