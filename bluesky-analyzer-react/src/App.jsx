@@ -243,7 +243,7 @@ const BlueskyAnalyzer = () => {
     <div className="min-h-screen bg-gray-100 p-4 md:p-8">
       <div className="max-w-4xl mx-auto">
         <div className="md:flex items-center md:justify-between mb-8">
-          <h1 className="text-3xl font-bold mb-4 md:mb-0">Bluesky Network Analyzer</h1>
+          <h1 className="text-3xl font-bold mb-4 md:mb-0">Bluesky network analyzer</h1>
           <p className="text-gray-500 text-sm">
             made by{' '}
             <a 
