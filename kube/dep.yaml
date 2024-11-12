@@ -7,7 +7,7 @@ spec:
   selector:
     matchLabels:
       app: bluesky-analyzer
-  replicas: 20
+  replicas: 25
   template:
     metadata:
       labels:
@@ -39,9 +39,3 @@ spec:
             port: 8000
           initialDelaySeconds: 5
           periodSeconds: 10
-        livenessProbe:
-          httpGet:
-            path: /
-            port: 8000
-          initialDelaySeconds: 15
-          periodSeconds: 20

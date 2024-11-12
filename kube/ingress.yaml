@@ -11,7 +11,7 @@ metadata:
 spec:
   ingressClassName: nginx  # Make sure this matches your ingress controller
   rules:
-  - host: bsky-follow-suggestions.theo.io  # Replace with your domain
+  - host: bsky-follow-finder.theo.io  # Replace with your domain
     http:
       paths:
       - path: /
@@ -23,5 +23,5 @@ spec:
               number: 80
   tls:
   - hosts:
-    - bsky-follow-suggestions.theo.io
+    - bsky-follow-finder.theo.io
     secretName: bluesky-tls
