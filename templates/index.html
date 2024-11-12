@@ -2,16 +2,34 @@
 <!DOCTYPE html>
 <html>
 <head>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-NDR7D0LP60"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-NDR7D0LP60');
+</script>
     <title>Bluesky Follower's Followers Who You don't</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body class="bg-gray-100 p-4 md:p-8">
     <div class="max-w-4xl mx-auto">
+    <div class="md:flex items-center md:justify-between mb-8">
         <h1 class="text-3xl font-bold mb-8">Bluesky network analyser</h1>
-        <p class="text-gray-600 mb-4 text-lg">
-            Enter your Bluesky handle below to find out who your followers follow who you don't, yet.
+         <p class="text-gray-500 mb-4 text-sm">
+
+        made by <a href="https://bsky.app/profile/theo.io" target="_blank" class="text-blue-500 hover:underline">@theo.io</a>
         </p>
+    </div>
+        <p class="text-gray-600 mb-4 text-lg">
+            Enter your Bluesky handle below to find people followed by lots of the people you follow (but not you). 
+           
+        </p>
+
+       
         
         <div class="bg-white rounded-lg shadow-md p-6 mb-8">
             <div class="flex flex-col md:flex-row gap-4">
@@ -67,6 +85,8 @@
                 handleInput.value = handle.slice(1);
             }
 
+            handleInput.value = handleInput.value.toLowerCase();
+
             if (eventSource) {
                 eventSource.close();
             }
@@ -91,7 +111,7 @@
 
                 ${data.processed_count!= data.total_count ? '<div class="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-500 mr-3 inline-block"></div>' : ''}
                 
-                Processed ${data.processed_count}/${data.total_count} follows • `;
+                Processed ${data.processed_count}/${data.total_count} follows`;
                 document.getElementById('progress').innerHTML = progress;
                 /*document.getElementById('updateTime').textContent = 
                     `Updated ${formatTimestamp(data.timestamp)}`;*/

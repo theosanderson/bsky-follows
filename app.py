@@ -360,10 +360,19 @@ TEMPLATES = """
 </head>
 <body class="bg-gray-100 p-4 md:p-8">
     <div class="max-w-4xl mx-auto">
+    <div class="md:flex items-center md:justify-between mb-8">
         <h1 class="text-3xl font-bold mb-8">Bluesky network analyser</h1>
+         <p class="text-gray-500 mb-4 text-sm">
+
+        made by <a href="https://bsky.app/profile/theo.io" target="_blank" class="text-blue-500 hover:underline">@theo.io</a>
+        </p>
+    </div>
         <p class="text-gray-600 mb-4 text-lg">
             Enter your Bluesky handle below to find people followed by lots of the people you follow (but not you). 
+           
         </p>
+
+       
         
         <div class="bg-white rounded-lg shadow-md p-6 mb-8">
             <div class="flex flex-col md:flex-row gap-4">
