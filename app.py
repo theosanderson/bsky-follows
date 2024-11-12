@@ -353,7 +353,7 @@ TEMPLATES = """
     <div class="max-w-4xl mx-auto">
         <h1 class="text-3xl font-bold mb-8">Bluesky network analyser</h1>
         <p class="text-gray-600 mb-4 text-lg">
-            Enter your Bluesky handle below to find out who those you follow themselves follow who you don't, yet.
+            Enter your Bluesky handle below to find people followed by lots of the people you follow (but not you). 
         </p>
         
         <div class="bg-white rounded-lg shadow-md p-6 mb-8">
