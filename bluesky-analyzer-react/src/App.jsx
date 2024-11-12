@@ -387,6 +387,8 @@ const BlueskyAnalyzer = () => {
             </div>
             
             {!showAppPasswordSection ? (
+
+              ( isAnalyzing || results.length >0) &&
               <button
                 type="button"
                 onClick={() => setShowAppPasswordSection(true)}
@@ -395,6 +397,8 @@ const BlueskyAnalyzer = () => {
                 <LockOpen className="w-4 h-4" />
                 Add app password to enable follow buttons (optional)
               </button>
+
+            
             ) : (
               <>
               <div className="flex flex-col md:flex-row gap-4 items-center">
