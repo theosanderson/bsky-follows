@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Loader2, User } from 'lucide-react';
-
+import { PiButterflyFill } from "react-icons/pi";
 // In-memory cache for profile data and pending requests
 const profileCache = new Map();
 const pendingRequests = new Map();
 
-// Custom hook for Bluesky API calls with lazy loading
+
+
 const useBlueskyProfiles = () => {
   const [profiles, setProfiles] = useState({});
   const [loadingHandles, setLoadingHandles] = useState(new Set());
@@ -125,7 +126,7 @@ const ResultItem = ({ item, index, onInView, handleToAnalyze }) => {
       ref={itemRef}
       className="flex items-center gap-3 p-3 border-b last:border-b-0 hover:bg-gray-50 transition-colors"
     >
-      <span className="text-gray-500 text-sm font-mono w-6 flex-shrink-0">
+      <span className="text-sky-500 text-sm font-mono w-6 flex-shrink-0">
         {index + 1}
       </span>
       <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-100 flex-shrink-0">
@@ -136,8 +137,8 @@ const ResultItem = ({ item, index, onInView, handleToAnalyze }) => {
             className="w-full h-full object-cover"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center bg-blue-100">
-            <User className="w-6 h-6 text-blue-500" />
+          <div className="w-full h-full flex items-center justify-center bg-sky-100">
+            <User className="w-6 h-6 text-sky-500" />
           </div>
         )}
       </div>
@@ -147,26 +148,26 @@ const ResultItem = ({ item, index, onInView, handleToAnalyze }) => {
             href={getBskyUrl(item.handle)} 
             target="_blank" 
             rel="noopener noreferrer"
-            className="font-medium text-blue-600 hover:text-blue-800 hover:underline truncate"
+            className="font-medium text-sky-900 hover:text-sky-800 hover:underline truncate"
           >
             {item.profile?.displayName || item.handle}
             {item.handle === handleToAnalyze && (
-              <span className="text-xs text-blue-500 ml-1">(You)</span>
+              <span className="text-xs text-sky-500 ml-1">(You)</span>
             )}
           </a>
-          <span className="text-sm text-gray-500 truncate">
+          <span className="text-sm text-sky-700 truncate">
             {window.innerWidth < 640 && item.handle.includes('bsky.social')
               ? item.handle.split('.')[0]
               : item.handle}
           </span>
           {item.profile?.description && (
-            <p className="text-xs text-gray-600 mt-1 line-clamp-2"
+            <p className="text-xs text-sky-600 mt-1 line-clamp-2"
             title={item.profile.description}>
               {item.profile.description}
             </p>
           )}
         </div>
-        <div className="text-right flex-shrink-0 text-gray-600">
+        <div className="text-right flex-shrink-0 text-sky-800">
           <span className="text-sm font-medium">{item.count}</span>
           <span className="text-xs block">follows</span>
         </div>
@@ -264,51 +265,57 @@ const BlueskyAnalyzer = () => {
     setIsAnalyzing(true);
   };
 
+  
   return (
-    <div className="min-h-screen bg-gray-100 p-4 md:p-8">
+    <div className="min-h-screen bg-gradient-to-b from-sky-50 to-white p-4 md:p-8">
       <div className="max-w-4xl mx-auto">
         <div className="md:flex items-center md:justify-between mb-8">
-          <h1 className="text-3xl font-bold mb-4 md:mb-0">Bluesky network analyzer</h1>
-          <p className="text-gray-500 text-sm">
+          <div className="flex items-center gap-3">
+            <PiButterflyFill className="w-12 h-12 text-sky-600" />
+            <h1 className="text-3xl font-bold mb-4 md:mb-0 bg-gradient-to-r from-sky-600 to-sky-600 text-transparent bg-clip-text">
+              Bluesky network analyzer
+            </h1>
+          </div>
+          <p className="text-sky-600 text-sm">
             made by{' '}
             <a 
               href="https://bsky.app/profile/theo.io" 
               target="_blank" 
               rel="noopener noreferrer" 
-              className="text-blue-500 hover:underline"
+              className="text-sky-500 hover:text-sky-700 hover:underline"
             >
               @theo.io
             </a>
           </p>
         </div>
 
-        <p className="text-gray-600 mb-4 text-lg">
+        <p className="text-sky-700 mb-4 text-lg">
           Enter your Bluesky handle below to find people followed by lots of the people you follow (but not you).
         </p>
 
-        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+        <div className="bg-white/80 backdrop-blur-sm rounded-lg shadow-lg shadow-sky-100/50 p-6 mb-8 border border-sky-100">
           <form onSubmit={handleSubmit} className="flex flex-col md:flex-row gap-4">
             <input 
               type="text" 
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               placeholder="Enter Bluesky handle (e.g., user.bsky.social)" 
-              className="flex-1 p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="flex-1 p-2 border border-sky-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white/90"
             />
             <button 
               type="submit"
-              className="bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600 transition-colors"
+              className="bg-sky-500 text-white px-6 py-2 rounded-lg hover:bg-sky-600 transition-colors shadow-sm hover:shadow-md"
             >
               Analyze
             </button>
           </form>
         </div>
 
-        <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="bg-white/80 backdrop-blur-sm rounded-lg shadow-lg shadow-sky-100/50 p-6 border border-sky-100">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold">Results</h2>
+            <h2 className="text-xl font-semibold text-sky-700">Results</h2>
             {isAnalyzing && progress.total > 0 && (
-              <div className="text-sm text-gray-500 flex items-center">
+              <div className="text-sm text-sky-600 flex items-center">
                 {progress.processed !== 0 && progress.processed !== progress.total &&
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 }
@@ -318,11 +325,11 @@ const BlueskyAnalyzer = () => {
           </div>
 
           {error ? (
-            <div className="text-red-500 p-4 rounded bg-red-50 border border-red-200">
+            <div className="text-red-500 p-4 rounded-lg bg-red-50 border border-red-200">
               {error}
             </div>
           ) : results.length === 0 && isAnalyzing ? (
-            <div className="text-gray-500 text-center py-8">
+            <div className="text-sky-600 text-center py-8">
               <Loader2 className="w-8 h-8 mx-auto mb-4 animate-spin" />
               Initialising: finding the people you follow..
             </div>
@@ -344,5 +351,4 @@ const BlueskyAnalyzer = () => {
     </div>
   );
 };
-
 export default BlueskyAnalyzer;
