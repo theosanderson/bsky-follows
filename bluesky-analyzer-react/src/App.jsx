@@ -412,7 +412,7 @@ const BlueskyAnalyzer = () => {
                 </div>
                 <div className="text-sm text-sky-600 flex items-center gap-2">
                   <Lock className="w-4 h-4" />
-                  Securely stored in browser
+                  Password is kept in local browser
                 </div>
                 
                
