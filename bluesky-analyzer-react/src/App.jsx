@@ -121,7 +121,7 @@ const ResultItem = ({ item, index, onInView }) => {
         )}
       </div>
       <div className="flex flex-1 justify-between items-start gap-2 min-w-0">
-        <div className="flex flex-col min-w-0 max-w-32 md:max-w-64">
+        <div className="flex flex-col min-w-0 max-w-32 md:max-w-none">
           <a 
             href={getBskyUrl(item.handle)} 
             target="_blank" 
