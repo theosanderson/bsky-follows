@@ -69,7 +69,7 @@ const useBlueskyProfiles = () => {
   return { profiles, fetchProfile, loadingHandles };
 };
 
-const ResultItem = ({ item, index, onInView }) => {
+const ResultItem = ({ item, index, onInView, handleToAnalyze }) => {
   const itemRef = useRef(null);
 
   useEffect(() => {
@@ -129,6 +129,10 @@ const ResultItem = ({ item, index, onInView }) => {
             className="font-medium text-blue-600 hover:text-blue-800 hover:underline truncate"
           >
             {item.profile?.displayName || item.handle}
+         
+          {item.handle === handleToAnalyze && (
+            <span className="text-xs text-blue-500 ml-1">(You)</span>
+          )}
           </a>
           <span className="text-sm text-gray-500 truncate">
             {window.innerWidth < 640 && item.handle.includes('bsky.social')
@@ -309,6 +313,7 @@ const BlueskyAnalyzer = () => {
                   item={item}
                   index={index}
                   onInView={handleInView}
+                  handleToAnalyze={handleToAnalyze}
                 />
               ))}
             </div>
