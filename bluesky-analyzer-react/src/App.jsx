@@ -270,8 +270,8 @@ const BlueskyAnalyzer = () => {
     <div className="min-h-screen bg-gradient-to-b from-sky-50 to-white p-4 md:p-8">
       <div className="max-w-4xl mx-auto">
         <div className="md:flex items-center md:justify-between mb-8">
-          <div className="flex items-center gap-3">
-            <PiButterflyFill className="w-12 h-12 text-sky-600" />
+          <div className="md:flex items-center gap-3">
+            <PiButterflyFill className="w-8 h-8 mb-3 md:mb-0 mx-auto md:mx-0 md:w-12 md:h-12 text-sky-600" />
             <h1 className="text-3xl font-bold mb-4 md:mb-0 bg-gradient-to-r from-sky-600 to-sky-600 text-transparent bg-clip-text">
               Bluesky network analyzer
             </h1>
