@@ -7,6 +7,8 @@ import { PiButterflyFill } from "react-icons/pi";
 
 import { BskyAgent } from '@atproto/api';
 
+import {Toaster, toast} from 'react-hot-toast';
+
 
 // Keep existing cache setup
 const profileCache = new Map();
@@ -45,6 +47,7 @@ const FollowButton = ({ handle, appPassword, username, className = "" }) => {
       }
     } catch (error) {
       console.error('Follow action failed:', error);
+      toast.error('Failed to follow. Maybe the app password is wrong?');
     } finally {
       setIsLoading(false);
     }
@@ -339,6 +342,7 @@ const BlueskyAnalyzer = () => {
   };
   return (
     <div className="min-h-screen bg-gradient-to-b from-sky-50 to-white p-4 md:p-8">
+      <Toaster />
       <div className="max-w-4xl mx-auto">
         <div className="md:flex items-center md:justify-between mb-8">
           <div className="md:flex items-center gap-3">
