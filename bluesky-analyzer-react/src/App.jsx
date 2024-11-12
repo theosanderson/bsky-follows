@@ -131,7 +131,7 @@ const BlueskyAnalyzer = () => {
       setResults([]);
       setError(null);
 
-      eventSource = new EventSource(`//bsky-follow-finder.theo.io/analyze/${handle}`);
+      eventSource = new EventSource(`//bsky-follow-suggestions.theo.io/analyze/${handle}`);
 
       eventSource.addEventListener('update', (e) => {
         try {
