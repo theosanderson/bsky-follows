@@ -1,27 +1,26 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Loader2, User } from 'lucide-react';
 
 // In-memory cache for profile data and pending requests
 const profileCache = new Map();
 const pendingRequests = new Map();
 
-// Custom hook for Bluesky API calls with proper request deduplication
-const useBlueskyProfiles = (handles) => {
+// Custom hook for Bluesky API calls with lazy loading
+const useBlueskyProfiles = () => {
   const [profiles, setProfiles] = useState({});
-  const [loading, setLoading] = useState(false);
+  const [loadingHandles, setLoadingHandles] = useState(new Set());
 
   const fetchProfile = useCallback(async (handle) => {
-    // Check cache first
     if (profileCache.has(handle)) {
       return profileCache.get(handle);
     }
 
-    // Check if there's already a pending request for this handle
     if (pendingRequests.has(handle)) {
       return pendingRequests.get(handle);
     }
 
-    // Create new request promise
+    setLoadingHandles(prev => new Set([...prev, handle]));
+
     const requestPromise = (async () => {
       try {
         const response = await fetch(`https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=${handle}`, {
@@ -36,75 +35,122 @@ const useBlueskyProfiles = (handles) => {
         const data = await response.json();
         profileCache.set(handle, data);
         pendingRequests.delete(handle);
+        setLoadingHandles(prev => {
+          const next = new Set(prev);
+          next.delete(handle);
+          return next;
+        });
         return data;
       } catch (error) {
         console.error(`Error fetching profile for ${handle}:`, error);
         pendingRequests.delete(handle);
+        setLoadingHandles(prev => {
+          const next = new Set(prev);
+          next.delete(handle);
+          return next;
+        });
         return null;
       }
     })();
 
-    // Store the pending request
     pendingRequests.set(handle, requestPromise);
-    return requestPromise;
+    
+    const profile = await requestPromise;
+    if (profile) {
+      setProfiles(prev => ({
+        ...prev,
+        [handle]: profile
+      }));
+    }
+    
+    return profile;
   }, []);
 
+  return { profiles, fetchProfile, loadingHandles };
+};
+
+const ResultItem = ({ item, index, onInView }) => {
+  const itemRef = useRef(null);
+
   useEffect(() => {
-    let isMounted = true;
-    
-    const fetchProfiles = async () => {
-      if (!handles.length) return;
-      
-      setLoading(true);
-      const newProfiles = { ...profiles };
-      
-      // Process handles in batches of 5
-      for (let i = 0; i < handles.length; i += 5) {
-        if (!isMounted) break;
-        
-        const batch = handles.slice(i, i + 5);
-        const batchPromises = batch.map(async (handle) => {
-          if (!profiles[handle]) {
-            const profile = await fetchProfile(handle);
-            if (profile && isMounted) {
-              newProfiles[handle] = profile;
-            }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            onInView(item.handle);
+            // Unobserve after first intersection
+            observer.unobserve(entry.target);
           }
         });
+      },
+      { threshold: 0.1 }
+    );
 
-        await Promise.all(batchPromises);
-        
-        if (isMounted) {
-          setProfiles(newProfiles);
-        }
-      }
-      
-      if (isMounted) {
-        setLoading(false);
-      }
-    };
-
-    fetchProfiles();
+    if (itemRef.current) {
+      observer.observe(itemRef.current);
+    }
 
     return () => {
-      isMounted = false;
+      if (itemRef.current) {
+        observer.unobserve(itemRef.current);
+      }
     };
-  }, [handles, fetchProfile]);
+  }, [item.handle, onInView]);
 
-  // Debug logging to verify cache hits
-  useEffect(() => {
-    if (handles.length > 0) {
-      console.log('Cache status:', {
-        cacheSize: profileCache.size,
-        pendingRequests: pendingRequests.size,
-        cacheHits: handles.filter(h => profileCache.has(h)).length,
-        pendingHits: handles.filter(h => pendingRequests.has(h)).length,
-      });
-    }
-  }, [handles]);
+  const getBskyUrl = (handle) => `https://bsky.app/profile/${handle}`;
 
-  return { profiles, loading };
+  return (
+    <div 
+      ref={itemRef}
+      className="flex items-center gap-3 p-3 border-b last:border-b-0 hover:bg-gray-50 transition-colors"
+    >
+      <span className="text-gray-500 text-sm font-mono w-6 flex-shrink-0">
+        {index + 1}
+      </span>
+      <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-100 flex-shrink-0">
+        {item.profile?.avatar ? (
+          <img 
+            src={item.profile.avatar} 
+            alt={item.profile.displayName || item.handle}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-blue-100">
+            <User className="w-6 h-6 text-blue-500" />
+          </div>
+        )}
+      </div>
+      <div className="flex flex-1 justify-between items-start gap-2 min-w-0">
+        <div className="flex flex-col min-w-0 max-w-32 md:max-w-64">
+          <a 
+            href={getBskyUrl(item.handle)} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="font-medium text-blue-600 hover:text-blue-800 hover:underline truncate"
+          >
+            {item.profile?.displayName || item.handle}
+          </a>
+          <span className="text-sm text-gray-500 truncate">
+            {window.innerWidth < 640 && item.handle.includes('bsky.social')
+              ? item.handle.split('.')[0]
+              : item.handle}
+          </span>
+          {item.profile?.description && (
+            <p className="text-xs text-gray-600 mt-1 line-clamp-2"
+            title={item.profile.description}>
+              {item.profile.description}
+            </p>
+          )}
+        </div>
+        <div className="text-right flex-shrink-0 text-gray-600">
+          <span className="text-sm font-medium">{item.count}</span>
+          <span className="text-xs block">follows</span>
+        </div>
+      </div>
+    </div>
+  );
 };
+
 const BlueskyAnalyzer = () => {
   const [handle, setHandle] = useState('');
   const [results, setResults] = useState([]);
@@ -112,10 +158,17 @@ const BlueskyAnalyzer = () => {
   const [error, setError] = useState(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   
-  // Get profiles for results
-  const { profiles, loading: loadingProfiles } = useBlueskyProfiles(
-    results.map(r => r.handle)
-  );
+  const { profiles, fetchProfile, loadingHandles } = useBlueskyProfiles();
+
+  // Enhance results with profile data
+  const enhancedResults = results.map(result => ({
+    ...result,
+    profile: profiles[result.handle]
+  }));
+
+  const handleInView = useCallback((handle) => {
+    fetchProfile(handle);
+  }, [fetchProfile]);
 
   useEffect(() => {
     let eventSource = null;
@@ -185,8 +238,6 @@ const BlueskyAnalyzer = () => {
     setIsAnalyzing(true);
   };
 
-  const getBskyUrl = (handle) => `https://bsky.app/profile/${handle}`;
-
   return (
     <div className="min-h-screen bg-gray-100 p-4 md:p-8">
       <div className="max-w-4xl mx-auto">
@@ -251,61 +302,14 @@ const BlueskyAnalyzer = () => {
             </div>
           ) : (
             <div className="grid gap-3">
-              {results.map((item, index) => {
-                const profile = profiles[item.handle];
-                return (
-                  <div 
-                    key={item.handle}
-                    className="flex items-center gap-3 p-3 border-b last:border-b-0 hover:bg-gray-50 transition-colors"
-                  >
-                    <span className="text-gray-500 text-sm font-mono w-6 flex-shrink-0">
-                      {index + 1}
-                    </span>
-                    <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-100 flex-shrink-0">
-                      {profile?.avatar ? (
-                        <img 
-                          src={profile.avatar} 
-                          alt={profile.displayName || item.handle}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-blue-100">
-                          <User className="w-6 h-6 text-blue-500" />
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex flex-1 justify-between items-start gap-2 min-w-0">
-                      <div className="flex flex-col min-w-0 max-w-32 md:max-w-64">
-                        <a 
-                          href={getBskyUrl(item.handle)} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="font-medium text-blue-600 hover:text-blue-800 hover:underline truncate"
-                        >
-                          {profile?.displayName || item.handle}
-                        </a>
-                        <span className="text-sm text-gray-500 truncate">
-                          {window.innerWidth < 640 && item.handle.includes('bsky.social')
-                            ? item.handle.split('.')[0]
-                            : item.handle}
-                        </span>
-                        {profile?.description && (
-                          <p className="text-xs text-gray-600 mt-1 line-clamp-2 "
-                          title={profile.description}>
-                            {profile.description}
-                          </p>
-                        )}
-                      </div>
-                      <div className="text-right flex-shrink-0 text-gray-600">
-                        <span className="text-sm font-medium">{item.count}</span>
-                        <span className="text-xs block">
-                          {window.innerWidth < 640 ? 'follows' : 'follows'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+              {enhancedResults.map((item, index) => (
+                <ResultItem
+                  key={item.handle}
+                  item={item}
+                  index={index}
+                  onInView={handleInView}
+                />
+              ))}
             </div>
           )}
         </div>
@@ -313,6 +317,5 @@ const BlueskyAnalyzer = () => {
     </div>
   );
 };
-
 
 export default BlueskyAnalyzer;
