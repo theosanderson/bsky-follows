@@ -324,7 +324,7 @@ const BlueskyAnalyzer = () => {
           ) : results.length === 0 && isAnalyzing ? (
             <div className="text-gray-500 text-center py-8">
               <Loader2 className="w-8 h-8 mx-auto mb-4 animate-spin" />
-              No results yet. Analysis in progress...
+              Initialising: finding the people you follow..
             </div>
           ) : (
             <div className="grid gap-3">

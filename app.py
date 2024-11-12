@@ -1,6 +1,6 @@
 import logging
 from fastapi import FastAPI, Request
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, JSONResponse, HTMLResponse, RedirectResponse
 import requests
 from collections import Counter, defaultdict
 from typing import Set, Dict, List, Optional
@@ -15,7 +15,6 @@ from sse_starlette.sse import EventSourceResponse
 import uvicorn
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 from threading import Lock
 import uuid
 import os
@@ -147,8 +146,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-templates = Jinja2Templates(directory="templates")
-
 # Add startup and shutdown events for the state manager
 @app.on_event("startup")
 async def startup_event():
@@ -199,22 +196,14 @@ class BlueskyAPI:
             params["cursor"] = cursor
             
         response = self.session.get(url, params=params)
-        # if we get a bad response return an empty list
         if response.status_code != 200:
             logger.error(f"Error fetching follows for {actor}: {response.text}")
             print(f"Error fetching follows for {actor}: {response.text}")
             return {"follows": []}
         return response.json()
 
-    def get_all_follows(self, actor: str) -> Set[str]:
-        cache_key = self._get_cache_key(actor)
-        
-        # Try cache first
-        cached_follows = self.redis.get(cache_key)
-        if cached_follows:
-            return set(json.loads(cached_follows))
-
-        print(f"Cache miss for {actor}")
+    def _fetch_all_follows(self, actor: str) -> Set[str]:
+        """Internal method to fetch all follows for an actor from the API."""
         follows = set()
         cursor = None
 
@@ -232,12 +221,30 @@ class BlueskyAPI:
                 print(response)
                 break
 
+        return follows
+
+    def get_all_follows(self, actor: str, use_cache: bool = True) -> Set[str]:
+        """
+        Get all follows for an actor.
+        Args:
+            actor: The handle to fetch follows for
+            use_cache: Whether to use Redis cache (default: True)
+        """
+        cache_key = self._get_cache_key(actor)
+        if use_cache:
+            cached_follows = self.redis.get(cache_key)
+            if cached_follows:
+                return set(json.loads(cached_follows))
+            print(f"Cache miss for {actor}")
+
+        follows = self._fetch_all_follows(actor)
+
+    
         if follows:
             self.redis.setex(cache_key, CACHE_TTL, json.dumps(list(follows)))
         else:
             print(f"No follows found for {actor}")
             self.redis.setex(cache_key, CACHE_TTL, "[]")
-
 
         return follows
 
@@ -253,7 +260,10 @@ async def continuous_analysis(session_id: str):
     
     try:
         # Get initial follows
-        your_follows = api.get_all_follows(state.handle)
+        your_follows = api.get_all_follows(state.handle, False)
+        if not your_follows:
+            logger.error(f"No follows found for {state.handle}")
+            return
         state.your_follows = your_follows
         
         while state.is_running:
@@ -329,219 +339,17 @@ async def follow_analyzer_event_generator(handle: str):
 
 @app.get("/")
 async def home(request: Request):
-    return templates.TemplateResponse(
-        "index.html",
-        {"request": request}
-    )
-
+    # redirect to https://bsky-follow-finder.theo.io/
+    return RedirectResponse(url="https://bsky-follow-finder.theo.io/")
+    
 @app.get("/analyze/{handle}")
 async def analyze_stream(handle: str):
     return EventSourceResponse(
         follow_analyzer_event_generator(handle)
     )
 
-# Template remains the same as before
-TEMPLATES = """
-<!DOCTYPE html>
-<html>
-<head>
-<!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-NDR7D0LP60"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
 
-  gtag('config', 'G-NDR7D0LP60');
-</script>
-    <title>Bluesky Follower's Followers Who You don't</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-</head>
-<body class="bg-gray-100 p-4 md:p-8">
-    <div class="max-w-4xl mx-auto">
-    <div class="md:flex items-center md:justify-between mb-8">
-        <h1 class="text-3xl font-bold mb-8">Bluesky network analyser</h1>
-         <p class="text-gray-500 mb-4 text-sm">
 
-        made by <a href="https://bsky.app/profile/theo.io" target="_blank" class="text-blue-500 hover:underline">@theo.io</a>
-        </p>
-    </div>
-        <p class="text-gray-600 mb-4 text-lg">
-            Enter your Bluesky handle below to find people followed by lots of the people you follow (but not you). 
-           
-        </p>
-
-       
-        
-        <div class="bg-white rounded-lg shadow-md p-6 mb-8">
-            <div class="flex flex-col md:flex-row gap-4">
-                <input 
-                    type="text" 
-                    id="handle" 
-                    placeholder="Enter Bluesky handle (e.g., user.bsky.social)" 
-                    class="flex-1 p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                <button 
-                    onclick="startAnalysis()" 
-                    class="bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600 transition-colors"
-                >
-                    Analyze
-                </button>
-            </div>
-        </div>
-
-        <div id="results" class="bg-white rounded-lg shadow-md p-6">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-xl font-semibold">Results</h2>
-                <div class="text-sm text-gray-500">
-                    <span id="progress"></span>
-                   
-                </div>
-            </div>
-            <div id="resultsList"></div>
-        </div>
-    </div>
-
-    <script>
-        let eventSource = null;
-
-        function formatTimestamp(timestamp) {
-            const date = new Date(timestamp * 1000);
-            return date.toLocaleTimeString();
-        }
-
-        function getBskyUrl(handle) {
-            return `https://bsky.app/profile/${handle}`;
-        }
-
-        function startAnalysis() {
-            const handleInput = document.getElementById('handle');
-            const handle = handleInput.value.trim();
-            if (!handle) return;
-
-            if (!handle.includes('.')) {
-                handleInput.value = `${handle}.bsky.social`;
-            }
-            
-            if (handle.startsWith('@')) {
-                handleInput.value = handle.slice(1);
-            }
-
-            handleInput.value = handleInput.value.toLowerCase();
-
-            if (eventSource) {
-                eventSource.close();
-            }
-
-            document.getElementById('resultsList').innerHTML = `
-                <div class="flex items-center justify-center p-8">
-                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mr-3"></div>
-                    <span class="text-gray-600">Starting analysis...</span>
-                </div>
-            `;
-            document.getElementById('progress').textContent = '';
-            //document.getElementById('updateTime').textContent = '';
-
-            eventSource = new EventSource(`/analyze/${handleInput.value}`);
-
-            eventSource.addEventListener('update', function(e) {
-                const data = JSON.parse(e.data);
-                updateResults(data.results);
-                
-                // Update progress
-                const progress = `
-
-                ${data.processed_count!= data.total_count ? '<div class="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-500 mr-3 inline-block"></div>' : ''}
-                
-                Processed ${data.processed_count}/${data.total_count} follows`;
-                document.getElementById('progress').innerHTML = progress;
-                /*document.getElementById('updateTime').textContent = 
-                    `Updated ${formatTimestamp(data.timestamp)}`;*/
-            });
-
-            eventSource.addEventListener('error', function(e) {
-                try {
-                    const data = JSON.parse(e.data);
-                    document.getElementById('resultsList').innerHTML = `
-                        <div class="text-red-500 p-4 rounded bg-red-50 border border-red-200">
-                            Error: ${data.error}
-                        </div>
-                    `;
-                } catch (err) {
-                    document.getElementById('resultsList').innerHTML = `
-                        <div class="text-red-500 p-4 rounded bg-red-50 border border-red-200">
-                            Connection error. Please try again.
-                        </div>
-                    `;
-                }
-            });
-        }
-
-        function updateResults(results) {
-            const resultsList = document.getElementById('resultsList');
-            
-            if (results.length === 0) {
-                resultsList.innerHTML = `
-                    <div class="text-gray-500 text-center py-8">
-               
-                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mr-3 mx-auto"></div>
-                   
-                    </div>
-
-                        No results yet. Analysis in progress...
-                    </div>
-                `;
-                return;
-            }
-
-            resultsList.innerHTML = `
-                <div class="grid gap-3">
-                    ${results.map((item, index) => `
-                        <div class="flex items-center justify-between p-3 ${
-                            index !== results.length - 1 ? 'border-b' : ''
-                        } hover:bg-gray-50 transition-colors">
-                            <div class="flex items-center gap-3">
-                                <span class="text-gray-500 text-sm font-mono w-6">${index + 1}</span>
-                                <a 
-                                    href="${getBskyUrl(item.handle)}" 
-                                    target="_blank" 
-                                    rel="noopener"
-                                    class="font-medium text-blue-600 hover:text-blue-800 hover:underline
-                                     max-w-10 sm:max-w-none "
-                                >
-                                
-                                    ${ (screen.width < 640 && item.handle.includes('bsky.social'))
-                                    ? item.handle.split('.')[0] : item.handle}
-                                </a>
-                            </div>
-                            <span class="text-gray-600 text-sm">
-                                ${item.count}  ${
-                                window.screen.width < 640
-                                ?
-                                "of those you follow":"of those you follow follow"}
-                            </span>
-                        </div>
-                    `).join('')}
-                </div>
-            `;
-        }
-
-        document.getElementById('handle').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                startAnalysis();
-            }
-        });
-    </script>
-</body>
-</html>
-"""
-
-# Create templates directory and save index.html
-import os
-os.makedirs("templates", exist_ok=True)
-with open("templates/index.html", "w") as f:
-    f.write(TEMPLATES)
 
 if __name__ == "__main__":
     uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=True)
