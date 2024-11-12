@@ -73,26 +73,47 @@ const ResultItem = ({ item, index, onInView, handleToAnalyze }) => {
   const itemRef = useRef(null);
 
   useEffect(() => {
-    const observer = new IntersectionObserver(
+    // Create two observers: one for immediate view and one for preloading
+    const viewObserver = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
             onInView(item.handle);
             // Unobserve after first intersection
-            observer.unobserve(entry.target);
+            viewObserver.unobserve(entry.target);
+            preloadObserver.unobserve(entry.target);
           }
         });
       },
       { threshold: 0.1 }
     );
 
+    // Preload observer with a larger rootMargin to detect items before they enter the viewport
+    const preloadObserver = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            onInView(item.handle);
+            // Unobserve after first intersection
+            preloadObserver.unobserve(entry.target);
+          }
+        });
+      },
+      {
+        rootMargin: '50% 0px 50% 0px', // Load items when they're within 50% of the viewport height
+        threshold: 0
+      }
+    );
+
     if (itemRef.current) {
-      observer.observe(itemRef.current);
+      viewObserver.observe(itemRef.current);
+      preloadObserver.observe(itemRef.current);
     }
 
     return () => {
       if (itemRef.current) {
-        observer.unobserve(itemRef.current);
+        viewObserver.unobserve(itemRef.current);
+        preloadObserver.unobserve(itemRef.current);
       }
     };
   }, [item.handle, onInView]);
@@ -129,10 +150,9 @@ const ResultItem = ({ item, index, onInView, handleToAnalyze }) => {
             className="font-medium text-blue-600 hover:text-blue-800 hover:underline truncate"
           >
             {item.profile?.displayName || item.handle}
-         
-          {item.handle === handleToAnalyze && (
-            <span className="text-xs text-blue-500 ml-1">(You)</span>
-          )}
+            {item.handle === handleToAnalyze && (
+              <span className="text-xs text-blue-500 ml-1">(You)</span>
+            )}
           </a>
           <span className="text-sm text-gray-500 truncate">
             {window.innerWidth < 640 && item.handle.includes('bsky.social')
@@ -154,6 +174,7 @@ const ResultItem = ({ item, index, onInView, handleToAnalyze }) => {
     </div>
   );
 };
+
 
 const BlueskyAnalyzer = () => {
   const [inputValue, setInputValue] = useState('');  // New state for input value
