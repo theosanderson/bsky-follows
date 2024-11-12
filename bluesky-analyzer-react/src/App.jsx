@@ -395,7 +395,7 @@ const BlueskyAnalyzer = () => {
                 className="text-sky-600 hover:text-sky-500 text-sm flex items-center gap-2 self-start"
               >
                 <LockOpen className="w-4 h-4" />
-                Add app password to enable follow buttons (optional)
+                Add an app password to enable follow buttons (optional)
               </button>
 
             
