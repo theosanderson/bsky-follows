@@ -1,11 +1,77 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Loader2, User } from 'lucide-react';
+import { Loader2, User, Lock, EyeOff, Eye, LockOpen 
+  ,
+  ExternalLink
+} from 'lucide-react';
 import { PiButterflyFill } from "react-icons/pi";
-// In-memory cache for profile data and pending requests
+
+import { BskyAgent } from '@atproto/api';
+
+
+// Keep existing cache setup
 const profileCache = new Map();
 const pendingRequests = new Map();
 
+const FollowButton = ({ handle, appPassword, username, className = "" }) => {
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
+  if(handle===username) {
+    return null
+  }
+
+  if(!appPassword) {
+    return null
+  }
+
+
+  const handleFollowAction = async () => {
+    if (isLoading || !appPassword || !username) return;
+    
+    setIsLoading(true);
+    try {
+      const agent = new BskyAgent({ service: 'https://bsky.social' });
+      await agent.login({ identifier: username, password: appPassword });
+      
+      const { data } = await agent.getProfile({ actor: handle })
+      const { did, displayName } = data
+
+      if (!isFollowing) {
+        await agent.follow(did);
+        setIsFollowing(true);
+      } else {
+        await agent.deleteFollow(did);
+        setIsFollowing(false);
+      }
+    } catch (error) {
+      console.error('Follow action failed:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <button
+      onClick={handleFollowAction}
+      disabled={isLoading}
+      className={`px-3 py-1 text-sm rounded-full transition-colors ${
+        isLoading
+          ? 'bg-gray-100 text-gray-400'
+          : isFollowing
+          ? 'bg-sky-100 text-sky-700 hover:bg-sky-200'
+          : 'bg-sky-500 text-white hover:bg-sky-600'
+      } ${className}`}
+    >
+      {isLoading ? (
+        <Loader2 className="w-4 h-4 animate-spin" />
+      ) : isFollowing ? (
+        'Following'
+      ) : (
+        'Follow'
+      )}
+    </button>
+  );
+};
 
 const useBlueskyProfiles = () => {
   const [profiles, setProfiles] = useState({});
@@ -70,17 +136,15 @@ const useBlueskyProfiles = () => {
   return { profiles, fetchProfile, loadingHandles };
 };
 
-const ResultItem = ({ item, index, onInView, handleToAnalyze }) => {
+const ResultItem = ({ item, index, onInView, handleToAnalyze, appPassword }) => {
   const itemRef = useRef(null);
 
   useEffect(() => {
-    // Create two observers: one for immediate view and one for preloading
     const viewObserver = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
             onInView(item.handle);
-            // Unobserve after first intersection
             viewObserver.unobserve(entry.target);
             preloadObserver.unobserve(entry.target);
           }
@@ -89,19 +153,17 @@ const ResultItem = ({ item, index, onInView, handleToAnalyze }) => {
       { threshold: 0.1 }
     );
 
-    // Preload observer with a larger rootMargin to detect items before they enter the viewport
     const preloadObserver = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
             onInView(item.handle);
-            // Unobserve after first intersection
             preloadObserver.unobserve(entry.target);
           }
         });
       },
       {
-        rootMargin: '50% 0px 50% 0px', // Load items when they're within 50% of the viewport height
+        rootMargin: '50% 0px 50% 0px',
         threshold: 0
       }
     );
@@ -144,19 +206,27 @@ const ResultItem = ({ item, index, onInView, handleToAnalyze }) => {
       </div>
       <div className="flex flex-1 justify-between items-start gap-2 min-w-0">
         <div className="flex flex-col min-w-0 max-w-32 md:max-w-none">
-          <a 
-            href={getBskyUrl(item.handle)} 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="font-medium text-sky-900 hover:text-sky-800 hover:underline truncate"
-          >
-            {item.profile?.displayName || item.handle}
-            {item.handle === handleToAnalyze && (
-              <span className="text-xs text-sky-500 ml-1">(You)</span>
-            )}
-          </a>
+          <div className="flex items-center gap-2">
+            <a 
+              href={getBskyUrl(item.handle)} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="font-medium text-sky-900 hover:text-sky-800 hover:underline truncate"
+            >
+              {item.profile?.displayName || item.handle}
+              {item.handle === handleToAnalyze && (
+                <span className="text-xs text-sky-500 ml-1">(You)</span>
+              )}
+            </a>
+            <FollowButton 
+              appPassword={appPassword}
+              handle={item.handle}
+              username={handleToAnalyze}
+              className="ml-2"
+            />
+          </div>
           <span className="text-sm text-sky-700 truncate">
-            {window.innerWidth < 640 && item.handle.includes('bsky.social')
+            @{window.innerWidth < 640 && item.handle.includes('bsky.social')
               ? item.handle.split('.')[0]
               : item.handle}
           </span>
@@ -176,18 +246,21 @@ const ResultItem = ({ item, index, onInView, handleToAnalyze }) => {
   );
 };
 
-
+// Main component with app password functionality
 const BlueskyAnalyzer = () => {
-  const [inputValue, setInputValue] = useState('');  // New state for input value
-  const [handleToAnalyze, setHandleToAnalyze] = useState(''); // State for the handle to actually analyze
+  const [inputValue, setInputValue] = useState('');
+  const [handleToAnalyze, setHandleToAnalyze] = useState('');
   const [results, setResults] = useState([]);
   const [progress, setProgress] = useState({ processed: 0, total: 0 });
   const [error, setError] = useState(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [appPassword, setAppPassword] = useState('');
+  const [showAppPassword, setShowAppPassword] = useState(false);
+  const [showAppPasswordSection, setShowAppPasswordSection] = useState(false);
   
+
   const { profiles, fetchProfile, loadingHandles } = useBlueskyProfiles();
 
-  // Enhance results with profile data
   const enhancedResults = results.map(result => ({
     ...result,
     profile: profiles[result.handle]
@@ -261,11 +334,9 @@ const BlueskyAnalyzer = () => {
       processedHandle = processedHandle.slice(1);
     }
 
-    setHandleToAnalyze(processedHandle.toLowerCase());  // Set the handle to analyze
+    setHandleToAnalyze(processedHandle.toLowerCase());
     setIsAnalyzing(true);
   };
-
-  
   return (
     <div className="min-h-screen bg-gradient-to-b from-sky-50 to-white p-4 md:p-8">
       <div className="max-w-4xl mx-auto">
@@ -293,21 +364,68 @@ const BlueskyAnalyzer = () => {
           Enter your Bluesky handle below to find people followed by lots of the people you follow (but not you).
         </p>
 
-        <div className="bg-white/80 backdrop-blur-sm rounded-lg shadow-lg shadow-sky-100/50 p-6 mb-8 border border-sky-100">
-          <form onSubmit={handleSubmit} className="flex flex-col md:flex-row gap-4">
-            <input 
-              type="text" 
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              placeholder="Enter Bluesky handle (e.g., user.bsky.social)" 
-              className="flex-1 p-2 border border-sky-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white/90"
-            />
-            <button 
-              type="submit"
-              className="bg-sky-500 text-white px-6 py-2 rounded-lg hover:bg-sky-600 transition-colors shadow-sm hover:shadow-md"
-            >
-              Analyze
-            </button>
+        <div className="bg-white/80 backdrop-blur-sm rounded-lg shadow-lg shadow-sky-100/50 p-6 mb-4 border border-sky-100">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+            <div className="flex flex-col md:flex-row gap-4">
+              <input 
+                type="text" 
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                placeholder="Enter Bluesky handle (e.g., user.bsky.social)" 
+                className="flex-1 p-2 border border-sky-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white/90"
+              />
+              <button 
+                type="submit"
+                className="bg-sky-500 text-white px-6 py-2 rounded-lg hover:bg-sky-600 transition-colors shadow-sm hover:shadow-md"
+              >
+                Analyze
+              </button>
+            </div>
+            
+            {!showAppPasswordSection ? (
+              <button
+                type="button"
+                onClick={() => setShowAppPasswordSection(true)}
+                className="text-sky-500 hover:text-sky-600 text-sm flex items-center gap-2 self-start"
+              >
+                <LockOpen className="w-4 h-4" />
+                Add app password to enable follow buttons
+              </button>
+            ) : (
+              <>
+              <div className="flex flex-col md:flex-row gap-4 items-center">
+                <div className="relative flex-1">
+                  <input 
+                    type={showAppPassword ? "text" : "password"}
+                    value={appPassword}
+                    onChange={(e) => setAppPassword(e.target.value)}
+                    placeholder="Enter App Password to enable follow buttons" 
+                    className="w-full p-2 pr-10 border border-sky-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white/90"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowAppPassword(!showAppPassword)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-sky-500 hover:text-sky-600"
+                  >
+                    {showAppPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                <div className="text-sm text-sky-600 flex items-center gap-2">
+                  <Lock className="w-4 h-4" />
+                  Securely stored in browser
+                </div>
+                
+               
+              </div>
+               <div className="block">
+               <a href="https://bsky.app/settings/app-passwords" target="_blank" rel="noopener noreferrer" className="text-sky-500 hover:text-sky-600 text-sm hover:underline">
+               <ExternalLink className="w-4 h-4 inline-block mr-1" />
+               Go to Bluesky settings to create an app password
+               </a>
+               </div>
+               </>
+              
+            )}
           </form>
         </div>
 
@@ -316,7 +434,7 @@ const BlueskyAnalyzer = () => {
             <h2 className="text-xl font-semibold text-sky-700">Results</h2>
             {isAnalyzing && progress.total > 0 && (
               <div className="text-sm text-sky-600 flex items-center">
-                {progress.processed !== 0 && progress.processed !== progress.total &&
+                {progress.processed !== 0&& progress.processed !== progress.total &&
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 }
                 Processed {progress.processed}/{progress.total} follows
@@ -342,13 +460,45 @@ const BlueskyAnalyzer = () => {
                   index={index}
                   onInView={handleInView}
                   handleToAnalyze={handleToAnalyze}
+                  appPassword={appPassword}
                 />
               ))}
+              {results.length > 0 && !isAnalyzing && (
+                <div className="text-center py-4 text-sky-600 text-sm">
+                  Analysis complete! Found {results.length} suggestions.
+                </div>
+              )}
             </div>
           )}
+          
+          {appPassword && results.length > 0 && (
+            <div className="mt-4 p-4 bg-sky-50 rounded-lg border border-sky-100">
+              <div className="flex items-center gap-2 text-sky-700 text-sm">
+                <Lock className="w-4 h-4" />
+                <span>
+                  Follow buttons are enabled. Click to follow/unfollow users directly.
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+        
+        <div className="mt-4 text-center text-sm text-sky-600">
+          <p>
+            Want to learn more about how this works?{' '}
+            <a 
+              href="https://github.com/yourusername/bluesky-analyzer" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-sky-500 hover:text-sky-700 hover:underline"
+            >
+              Check out the source code
+            </a>
+          </p>
         </div>
       </div>
     </div>
   );
 };
+
 export default BlueskyAnalyzer;
