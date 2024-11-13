@@ -10,6 +10,62 @@ import { BskyAgent } from '@atproto/api';
 import {Toaster, toast} from 'react-hot-toast';
 
 
+const WeightToggle = ({ weighted, onToggle }) => {
+  return (
+    <div className="flex items-center gap-4 mb-4">
+      <div className="flex items-center">
+        <input
+          type="radio"
+          id="unweighted"
+          name="weight-mode"
+          value="unweighted"
+          checked={!weighted}
+          onChange={() => onToggle(false)}
+          className="w-4 h-4 text-sky-600 border-gray-300 focus:ring-sky-500"
+        />
+        <label htmlFor="unweighted" className="ml-2 text-sm text-gray-500">
+          Sort by total (favours large accounts)
+        </label>
+      </div>
+      
+      <div className="flex items-center">
+        <input
+          type="radio"
+          id="weighted"
+          name="weight-mode"
+          value="weighted"
+          checked={weighted}
+          onChange={() => onToggle(true)}
+          className="w-4 h-4 text-sky-600 border-gray-300 focus:ring-sky-500"
+        />
+        <label htmlFor="weighted" className="ml-2 text-sm text-gray-500">
+          Sort by proportion (favours specific accounts)
+        </label>
+      </div>
+    </div>
+  );
+};
+
+
+const calculateWilsonScore = (positive, total, confidence = 0.95) => {
+  if (total === 0) return 0;
+  
+  // z score for confidence level (0.95 = 1.96)
+  const z = 1.96;
+  
+  const phat = positive / total;
+  const z2 = z * z;
+  const n = total;
+  
+  // Wilson score interval lower bound formula
+  const numerator = phat + z2/(2*n) - z * Math.sqrt((phat*(1-phat) + z2/(4*n))/n);
+  const denominator = 1 + z2/n;
+  
+  return numerator/denominator;
+};
+
+
+
 // Keep existing cache setup
 const profileCache = new Map();
 const pendingRequests = new Map();
@@ -139,7 +195,7 @@ const useBlueskyProfiles = () => {
   return { profiles, fetchProfile, loadingHandles };
 };
 
-const ResultItem = ({ item, index, onInView, handleToAnalyze, appPassword }) => {
+const ResultItem = ({ item, index, onInView, handleToAnalyze, appPassword, weightedEnabled }) => {
   const itemRef = useRef(null);
 
   useEffect(() => {
@@ -241,7 +297,13 @@ const ResultItem = ({ item, index, onInView, handleToAnalyze, appPassword }) => 
           )}
         </div>
         <div className="text-right flex-shrink-0 text-sky-800">
-          <span className="text-sm font-medium">{item.count}</span>
+          <span className="text-sm font-medium">{item.count}
+            {weightedEnabled &&
+            <span>/{item.followers}</span>
+            }
+            
+            
+            </span>
           <span className="text-xs block">follows</span>
         </div>
       </div>
@@ -260,14 +322,26 @@ const BlueskyAnalyzer = () => {
   const [appPassword, setAppPassword] = useState('');
   const [showAppPassword, setShowAppPassword] = useState(false);
   const [showAppPasswordSection, setShowAppPasswordSection] = useState(false);
+  const [weightedEnabled, setWeightedEnabled] = useState(false);
   
 
   const { profiles, fetchProfile, loadingHandles } = useBlueskyProfiles();
 
-  const enhancedResults = results.map(result => ({
+  let enhancedResults = results.map(result => ({
     ...result,
     profile: profiles[result.handle]
   }));
+
+  if (weightedEnabled) {
+    enhancedResults = enhancedResults.map(result => ({
+      ...result,
+      score: calculateWilsonScore(result.count, result.followers)
+    })).sort((a, b) => b.score - a.score);
+  }
+
+
+
+  
 
   const handleInView = useCallback((handle) => {
     fetchProfile(handle);
@@ -460,6 +534,16 @@ const BlueskyAnalyzer = () => {
               Initialising: finding the people you follow..
             </div>
           ) : (
+          <div>
+
+            {
+              results.length > 0 &&
+            
+            <WeightToggle weighted={weightedEnabled} onToggle={setWeightedEnabled} />
+}
+            
+
+
             <div className="grid gap-3">
               {enhancedResults.map((item, index) => (
                 <ResultItem
@@ -469,14 +553,19 @@ const BlueskyAnalyzer = () => {
                   onInView={handleInView}
                   handleToAnalyze={handleToAnalyze}
                   appPassword={appPassword}
+                  weightedEnabled={weightedEnabled}
                 />
               ))}
+              
+           
               {results.length > 0 && !isAnalyzing && (
                 <div className="text-center py-4 text-sky-600 text-sm">
                   Analysis complete! Found {results.length} suggestions.
-                </div>
+                </div> 
               )}
             </div>
+          </div>
+            
           )}
           
           {appPassword && results.length > 0 && (
