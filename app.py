@@ -50,6 +50,7 @@ REDIS_CONFIG: RedisConfig = {
 
 # Log the Redis configuration at startup
 logger.info(f"Redis configuration: {REDIS_CONFIG}")
+
 class UserAnalysisState:
     def __init__(self, session_id: str, handle: str):
         self.session_id = session_id
@@ -70,14 +71,32 @@ class UserAnalysisState:
     def get_results(self) -> List[Dict]:
         with self.lock:
             self.last_access = time.time()
-            result = [
+            # First get the filtered and sliced results without follower counts
+            results = [
                 {"handle": handle, "count": count}
                 for handle, count in self.follows_of_follows.most_common()
                 if handle not in self.your_follows and count > 5 and handle != "handle.invalid"
+            ][:1000]
+            
+            # Now enrich with follower counts using BlueskyAPI
+            api = BlueskyAPI()
+            with ThreadPoolExecutor(max_workers=10) as executor:
+                futures = {
+                    executor.submit(api.get_follower_count, result["handle"]): result
+                    for result in results
+                }
+                
+                for future in concurrent.futures.as_completed(futures):
+                    result = futures[future]
+                    try:
+                        follower_count = future.result()
+                        result["followers"] = follower_count
+                    except Exception as e:
+                        logger.error(f"Error getting follower count for {result['handle']}: {e}")
+                        result["followers"] = 0
+           
+            return results
 
-            ]
-            # truncate to 1000
-            return result[:1000]
 
 class AnalysisStateManager:
     def __init__(self):
@@ -172,6 +191,7 @@ class RateLimiter:
         
         self.last_call_time = time.time()
 
+
 class BlueskyAPI:
     def __init__(self):
         self.rate_limiter = RateLimiter(RATE_LIMIT)
@@ -185,7 +205,10 @@ class BlueskyAPI:
             raise
 
     def _get_cache_key(self, actor: str) -> str:
-        return f"bluesky:follows:{actor}"
+        return f"cbluesky:follows:{actor}"
+
+    def _get_follower_count_cache_key(self, actor: str) -> str:
+        return f"bcluesky:followers:{actor}"
 
     def get_follows(self, actor: str, limit: int = 100, cursor: Optional[str] = None) -> Dict:
         self.rate_limiter.wait()
@@ -198,9 +221,33 @@ class BlueskyAPI:
         response = self.session.get(url, params=params)
         if response.status_code != 200:
             logger.error(f"Error fetching follows for {actor}: {response.text}")
-            print(f"Error fetching follows for {actor}: {response.text}")
             return {"follows": []}
         return response.json()
+
+    def get_follower_count(self, actor: str) -> int:
+        """Get follower count for an actor, using cache if available"""
+        # Check cache first
+        cache_key = self._get_follower_count_cache_key(actor)
+        cached_count = self.redis.get(cache_key)
+        if cached_count is not None:
+            return int(cached_count)
+
+        # If not in cache, fetch from API
+        self.rate_limiter.wait()
+        url = "https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile"
+        params = {"actor": actor}
+        
+        try:
+            response = self.session.get(url, params=params)
+            if response.status_code == 200:
+                follower_count = response.json().get('followersCount', 0)
+                # Cache the result
+                self.redis.setex(cache_key, CACHE_TTL, str(follower_count))
+                return follower_count
+        except Exception as e:
+            logger.error(f"Error fetching profile for {actor}: {e}")
+        
+        return 0
 
     def _fetch_all_follows(self, actor: str) -> Set[str]:
         """Internal method to fetch all follows for an actor from the API."""
@@ -217,33 +264,26 @@ class BlueskyAPI:
                     break
                 cursor = response['cursor']
             except requests.exceptions.RequestException:
-                print(f"Error fetching follows for {actor}")
-                print(response)
+                logger.error(f"Error fetching follows for {actor}")
                 break
 
         return follows
 
     def get_all_follows(self, actor: str, use_cache: bool = True) -> Set[str]:
-        """
-        Get all follows for an actor.
-        Args:
-            actor: The handle to fetch follows for
-            use_cache: Whether to use Redis cache (default: True)
-        """
+        """Get all follows for an actor."""
         cache_key = self._get_cache_key(actor)
         if use_cache:
             cached_follows = self.redis.get(cache_key)
             if cached_follows:
                 return set(json.loads(cached_follows))
-            print(f"Cache miss for {actor}")
+            logger.info(f"Cache miss for {actor}")
 
         follows = self._fetch_all_follows(actor)
-
     
         if follows:
             self.redis.setex(cache_key, CACHE_TTL, json.dumps(list(follows)))
         else:
-            print(f"No follows found for {actor}")
+            logger.info(f"No follows found for {actor}")
             self.redis.setex(cache_key, CACHE_TTL, "[]")
 
         return follows
