@@ -403,6 +403,8 @@ const BlueskyAnalyzer = () => {
     e.preventDefault();
     let processedHandle = inputValue.trim();
     
+     processedHandle = processedHandle.replace(/[^\x00-\x7F]/g, '');
+    
     if (!processedHandle.includes('.')) {
       processedHandle = `${processedHandle}.bsky.social`;
     }
@@ -410,6 +412,7 @@ const BlueskyAnalyzer = () => {
     if (processedHandle.startsWith('@')) {
       processedHandle = processedHandle.slice(1);
     }
+
 
     setHandleToAnalyze(processedHandle.toLowerCase());
     setIsAnalyzing(true);
