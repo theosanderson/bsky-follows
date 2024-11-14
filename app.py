@@ -38,7 +38,7 @@ class RedisConfig(TypedDict):
 # Constants
 RATE_LIMIT = 3000
 MAX_WORKERS = 40
-CACHE_TTL = 3600*6
+CACHE_TTL = 3600*12
 STREAM_INTERVAL = 5
 
 # Redis configuration with environment variable support
@@ -76,8 +76,8 @@ class UserAnalysisState:
                 if handle not in self.your_follows and count > 5 and handle != "handle.invalid"
 
             ]
-            # truncate to 1000
-            return result[:1000]
+    
+            return result[:1500]
 
 class AnalysisStateManager:
     def __init__(self):
