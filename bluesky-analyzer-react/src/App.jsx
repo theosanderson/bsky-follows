@@ -382,7 +382,9 @@ const BlueskyAnalyzer = () => {
           const data = JSON.parse(e.data);
           setError(data.error);
         } catch (err) {
+          if (!(progress.processed && progress.total && progress.processed == progress.total)){
           setError('Connection error. Please try again.');
+          }
         }
         eventSource.close();
       });
