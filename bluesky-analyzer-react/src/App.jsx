@@ -371,6 +371,9 @@ const BlueskyAnalyzer = () => {
             processed: data.processed_count,
             total: data.total_count
           });
+          if( data.processed_count &&  data.processed_count == data.total_count){
+            window.finished = true
+          }
         } catch (err) {
           setError('Failed to parse server data');
         }
@@ -382,7 +385,9 @@ const BlueskyAnalyzer = () => {
           const data = JSON.parse(e.data);
           setError(data.error);
         } catch (err) {
+          if (!window.finished){
           setError('Connection error. Please try again.');
+          }
         }
         eventSource.close();
       });
@@ -416,6 +421,7 @@ const BlueskyAnalyzer = () => {
 
     setHandleToAnalyze(processedHandle.toLowerCase());
     setIsAnalyzing(true);
+    window.finished=false;
   };
   return (
     <div className="min-h-screen bg-gradient-to-b from-sky-50 to-white p-4 md:p-8">
