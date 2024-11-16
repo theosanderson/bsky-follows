@@ -386,7 +386,7 @@ const BlueskyAnalyzer = () => {
           setError(data.error);
         } catch (err) {
           if (!window.finished){
-          setError('Connection error. Please try again.');
+          setError('Something went wrong: sometimes this means you mistyped your username. Please try again.');
           }
         }
         eventSource.close();
