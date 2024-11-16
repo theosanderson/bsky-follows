@@ -24,7 +24,7 @@ const WeightToggle = ({ weighted, onToggle }) => {
           className="w-4 h-4 text-sky-600 border-gray-300 focus:ring-sky-500"
         />
         <label htmlFor="unweighted" className="ml-2 text-sm text-gray-500">
-          Sort by total (favours large accounts)
+          Sort by total (favours larger accounts)
         </label>
       </div>
       
@@ -39,7 +39,7 @@ const WeightToggle = ({ weighted, onToggle }) => {
           className="w-4 h-4 text-sky-600 border-gray-300 focus:ring-sky-500"
         />
         <label htmlFor="weighted" className="ml-2 text-sm text-gray-500">
-          Sort by proportion (favours specific accounts)
+          Sort by proportion (favours niche accounts)
         </label>
       </div>
     </div>
