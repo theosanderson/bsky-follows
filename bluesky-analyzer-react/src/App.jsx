@@ -103,7 +103,7 @@ const FollowButton = ({ handle, appPassword, username, className = "" }) => {
       }
     } catch (error) {
       console.error('Follow action failed:', error);
-      toast.error('Failed to follow. Maybe the app password is wrong?');
+      toast.error('Failed to follow. Maybe the app password is wrong? Or we may have exceeded the Bluesky rate limit for following. '+error);
     } finally {
       setIsLoading(false);
     }
