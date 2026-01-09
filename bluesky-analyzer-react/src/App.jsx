@@ -408,7 +408,7 @@ const ResultItem = ({ item, index, onInView, handleToAnalyze, appPassword, weigh
         <div className="text-right flex-shrink-0 text-sky-800">
           <span className="text-sm font-medium">
             {item.count}
-            {weightedEnabled && <span>/{item.followers}</span>}
+            {weightedEnabled && item.followers > 0 && <span>/{item.followers}</span>}
           </span>
           <span className="text-xs block">follows</span>
         </div>
