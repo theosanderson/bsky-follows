@@ -480,6 +480,27 @@ const useBrowserAnalysis = () => {
         }
       };
 
+      // Cache for follower counts we've already fetched
+      const followerCounts = new Map();
+
+      // Helper to get top results with follower counts
+      const getTopResults = () => {
+        return Array.from(followsOfFollows.entries())
+          .filter(([h, count]) =>
+            !userFollows.has(h) &&
+            count > MIN_COMMON_FOLLOWS &&
+            h !== 'handle.invalid' &&
+            h !== handle
+          )
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, MAX_RESULTS)
+          .map(([h, count]) => ({
+            handle: h,
+            count,
+            followers: followerCounts.get(h) || 0
+          }));
+      };
+
       // Process in concurrent batches
       for (let i = 0; i < followsArray.length; i += CONCURRENT_REQUESTS) {
         if (abortRef.current) break;
@@ -490,50 +511,51 @@ const useBrowserAnalysis = () => {
 
         setProgress({ processed, total: userFollows.size });
 
-        // Generate intermediate results every few batches
+        // Generate intermediate results and fetch follower counts for top results
         if (processed % 10 === 0 || processed === userFollows.size) {
-          const intermediateResults = Array.from(followsOfFollows.entries())
-            .filter(([h, count]) =>
-              !userFollows.has(h) &&
-              count > MIN_COMMON_FOLLOWS &&
-              h !== 'handle.invalid' &&
-              h !== handle
-            )
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, MAX_RESULTS)
-            .map(([h, count]) => ({ handle: h, count, followers: 0 }));
+          const currentTop = getTopResults();
 
-          setResults(intermediateResults);
+          // Fetch follower counts for top results that we don't have yet (limit to top 50 for speed)
+          const needFollowerCounts = currentTop
+            .slice(0, 50)
+            .filter(r => !followerCounts.has(r.handle));
+
+          if (needFollowerCounts.length > 0) {
+            const counts = await Promise.all(
+              needFollowerCounts.map(async (r) => {
+                const followers = await api.getFollowerCount(r.handle);
+                return { handle: r.handle, followers };
+              })
+            );
+            counts.forEach(({ handle, followers }) => {
+              followerCounts.set(handle, followers);
+            });
+          }
+
+          setResults(getTopResults());
         }
       }
 
       if (abortRef.current) return;
 
-      // Step 3: Get follower counts for top results
-      const finalResults = Array.from(followsOfFollows.entries())
-        .filter(([h, count]) =>
-          !userFollows.has(h) &&
-          count > MIN_COMMON_FOLLOWS &&
-          h !== 'handle.invalid' &&
-          h !== handle
-        )
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, MAX_RESULTS);
+      // Final pass: ensure all results have follower counts
+      const finalResults = getTopResults();
+      const remaining = finalResults.filter(r => !followerCounts.has(r.handle));
 
-      // Fetch follower counts in batches
-      const resultsWithFollowers = [];
-      for (let i = 0; i < finalResults.length; i += 10) {
+      for (let i = 0; i < remaining.length; i += 10) {
         if (abortRef.current) break;
 
-        const batch = finalResults.slice(i, i + 10);
-        const batchResults = await Promise.all(
-          batch.map(async ([h, count]) => {
-            const followers = await api.getFollowerCount(h);
-            return { handle: h, count, followers };
+        const batch = remaining.slice(i, i + 10);
+        const counts = await Promise.all(
+          batch.map(async (r) => {
+            const followers = await api.getFollowerCount(r.handle);
+            return { handle: r.handle, followers };
           })
         );
-        resultsWithFollowers.push(...batchResults);
-        setResults([...resultsWithFollowers]);
+        counts.forEach(({ handle, followers }) => {
+          followerCounts.set(handle, followers);
+        });
+        setResults(getTopResults());
       }
 
       setIsAnalyzing(false);
