@@ -16,7 +16,9 @@ const REQUEST_INTERVAL = 1000 / REQUESTS_PER_SECOND;
 // Analysis configuration
 const MIN_COMMON_FOLLOWS = 5;
 const MAX_RESULTS = 1500;
+const DISPLAY_RESULTS = 200; // Limit displayed results for performance
 const CONCURRENT_REQUESTS = 4;
+const UPDATE_INTERVAL = 100; // Update UI every N processed follows
 
 // Simple rate limiter
 class RateLimiter {
@@ -512,7 +514,7 @@ const useBrowserAnalysis = () => {
         setProgress({ processed, total: userFollows.size });
 
         // Generate intermediate results and fetch follower counts for top results
-        if (processed % 10 === 0 || processed === userFollows.size) {
+        if (processed % UPDATE_INTERVAL === 0 || processed === userFollows.size) {
           const currentTop = getTopResults();
 
           // Fetch follower counts for top results that we don't have yet (limit to top 50 for speed)
@@ -599,6 +601,9 @@ const BlueskyAnalyzer = () => {
       }))
       .sort((a, b) => b.score - a.score);
   }
+
+  // Limit displayed results for performance
+  const displayedResults = enhancedResults.slice(0, DISPLAY_RESULTS);
 
   const handleInView = useCallback((handle) => {
     fetchProfile(handle);
@@ -762,7 +767,7 @@ const BlueskyAnalyzer = () => {
               )}
 
               <div className="grid gap-3">
-                {enhancedResults.map((item, index) => (
+                {displayedResults.map((item, index) => (
                   <ResultItem
                     key={item.handle}
                     item={item}
@@ -776,7 +781,7 @@ const BlueskyAnalyzer = () => {
 
                 {results.length > 0 && !isAnalyzing && (
                   <div className="text-center py-4 text-sky-600 text-sm">
-                    Analysis complete! Found {results.length} suggestions.
+                    Analysis complete! Showing top {displayedResults.length} of {results.length} suggestions.
                   </div>
                 )}
               </div>
