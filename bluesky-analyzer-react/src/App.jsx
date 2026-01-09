@@ -18,7 +18,7 @@ const MIN_COMMON_FOLLOWS = 5;
 const MAX_RESULTS = 1500;
 const DISPLAY_RESULTS = 200; // Limit displayed results for performance
 const CONCURRENT_REQUESTS = 4;
-const UPDATE_INTERVAL = 100; // Update UI every N processed follows
+const UPDATE_INTERVAL_MS = 5000; // Update UI every 5 seconds
 
 // Simple rate limiter
 class RateLimiter {
@@ -504,6 +504,8 @@ const useBrowserAnalysis = () => {
       };
 
       // Process in concurrent batches
+      let lastUpdateTime = Date.now();
+
       for (let i = 0; i < followsArray.length; i += CONCURRENT_REQUESTS) {
         if (abortRef.current) break;
 
@@ -513,8 +515,10 @@ const useBrowserAnalysis = () => {
 
         setProgress({ processed, total: userFollows.size });
 
-        // Generate intermediate results and fetch follower counts for top results
-        if (processed % UPDATE_INTERVAL === 0 || processed === userFollows.size) {
+        // Generate intermediate results every 5 seconds or at the end
+        const now = Date.now();
+        if (now - lastUpdateTime >= UPDATE_INTERVAL_MS || processed === userFollows.size) {
+          lastUpdateTime = now;
           const currentTop = getTopResults();
 
           // Fetch follower counts for top results that we don't have yet (limit to top 50 for speed)
